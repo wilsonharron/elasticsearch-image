@@ -27,13 +27,33 @@ import org.elasticsearch.index.query.QueryParsingException;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.IOException;
+import java.net.URL;
 
 public class ImageQueryParser implements QueryParser {
 
     public static final String NAME = "image";
 
     private Client client;
+
+    private static byte[] readImageUrl(String url) {
+        try {
+            URL _url = new URL(url);
+            ByteArrayOutputStream bytestream  = new ByteArrayOutputStream();
+            byte[] byteChunk = new byte[4096];
+            int n;
+            InputStream is = _url.openStream();
+            while ((n=is.read(byteChunk)) > 0)
+                bytestream.write(byteChunk, 0, n);
+
+            return bytestream.toByteArray();
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     @Inject
     public ImageQueryParser(Client client) {
@@ -80,6 +100,8 @@ public class ImageQueryParser implements QueryParser {
                         featureEnum = FeatureEnum.getByName(parser.text());
                     } else if ("image".equals(currentFieldName)) {
                         image = parser.binaryValue();
+                    } else if ("url".equals(currentFieldName)) {
+                        image = readImageUrl(parser.text());
                     } else if ("hash".equals(currentFieldName)) {
                         hashEnum = HashEnum.getByName(parser.text());
                     } else if ("boost".equals(currentFieldName)) {

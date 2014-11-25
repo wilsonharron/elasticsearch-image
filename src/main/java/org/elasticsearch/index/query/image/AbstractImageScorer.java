@@ -48,7 +48,7 @@ public abstract class AbstractImageScorer extends Scorer {
             float distance = lireFeature.getDistance(docFeature);
             float score;
             if (Float.compare(distance, 1.0f) <= 0) { // distance less than 1, consider as same image
-                score = 2f - distance;
+                score = 1.0f;
             } else {
                 score = 1 / distance;
             }

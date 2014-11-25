@@ -31,7 +31,11 @@ import org.elasticsearch.threadpool.ThreadPool;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -46,7 +50,7 @@ public class ImageMapper implements Mapper {
 
     private static ESLogger logger = ESLoggerFactory.getLogger(ImageMapper.class.getName());
 
-    public static final int MAX_IMAGE_DIMENSION = 1024;
+    public static final int MAX_IMAGE_DIMENSION = 1920;
 
     public static final String CONTENT_TYPE = "image";
 
@@ -57,6 +61,32 @@ public class ImageMapper implements Mapper {
 
     public static final String BIT_SAMPLING_FILE = "/hash/LshBitSampling.obj";
     public static final String LSH_HASH_FILE = "/hash/lshHashFunctions.obj";
+
+    private static byte[] readImageUrl(String url) {
+        try {
+            logger.debug(String.format("reading from url: %s", url));
+            URL _url = new URL(url);
+            URLConnection uc = _url.openConnection();
+            String userinfo = _url.getUserInfo();
+            if (userinfo != null) {
+                String encoding = new sun.misc.BASE64Encoder().encode(userinfo.getBytes());
+                uc.setRequestProperty("Authorization", "Basic " + encoding);
+            }
+            logger.debug(String.format("url: %s, userinfo: %s", url, userinfo));
+
+            ByteArrayOutputStream bytestream  = new ByteArrayOutputStream();
+            byte[] byteChunk = new byte[4096];
+            int n;
+            InputStream is = uc.getInputStream();
+            while ((n=is.read(byteChunk)) > 0)
+                bytestream.write(byteChunk, 0, n);
+
+            return bytestream.toByteArray();
+        } catch (Exception e) {
+            logger.error(String.format("error reading from url: %s", url),e);
+            return null;
+        }
+    }
 
     static {
         try {
@@ -245,7 +275,11 @@ public class ImageMapper implements Mapper {
         XContentParser parser = context.parser();
         XContentParser.Token token = parser.currentToken();
         if (token == XContentParser.Token.VALUE_STRING) {
-            content = parser.binaryValue();
+            logger.debug("reading image...");
+            content = readImageUrl(parser.text());
+            if (content == null)
+                content = parser.binaryValue();
+            //content = parser.binaryValue();
         }
 
         if (content == null) {
